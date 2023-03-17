@@ -96,7 +96,6 @@ function green_kubo(N,T,J)        # formule de Green-Kubo, N : découpe de T, T 
     end
 
     S = S.*(-Vd.(q_0))        # on multiplie par -sin(q_0) comme dans la formule
-    VAR = var(S/J)
     return 1-sum(S)/J           # normalisation
 
 end
@@ -117,7 +116,7 @@ function green_kubo_var(N,T,J)        # formule de Green-Kubo, N : découpe de T
 
     S = S.*(-Vd.(q_0))        # on multiplie par -sin(q_0) comme dans la formule
     
-    return var(S/J)           # on renvoie la variance (le 1 - ... est bien sur gômmé)
+    return 1.96*sqrt(var(S/J)/J)           # on renvoie la variance (le 1 - ... est bien sur gômmé)
 
 end
 
@@ -159,3 +158,12 @@ function diff_finies_coeff(h)
 
 end
 
+GK = []
+GKV = []
+T = 1:0.05:10
+for t = 1:0.05:10
+    push!(GK, green_kubo(10*t,t,1000))
+    push!(GKV, green_kubo_var(10*t,t,1000))
+end
+
+plot(T,GK,ribbon = GKV)
