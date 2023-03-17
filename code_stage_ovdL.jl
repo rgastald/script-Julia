@@ -157,7 +157,7 @@ function diff_finies_coeff(h)
     return 1 + D*h/Z
 
 end
-
+"""
 GK = []
 GKV = []
 T = 1:0.05:10
@@ -167,3 +167,4 @@ for t = 1:0.05:10
 end
 
 plot(T,GK,ribbon = GKV)
+"""
