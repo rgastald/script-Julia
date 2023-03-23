@@ -74,7 +74,7 @@ function GK_girsanov(N,T,J,a)
     mean(M.*Inte)
 
 end
-
+"""
 function green_kubo_LR(N,T,J,a)        # formule de Green-Kubo, N : découpe de T, T le temps, J nbr pour MC
 
     pas = T/N                        # construction du pas
@@ -97,4 +97,4 @@ function green_kubo_LR(N,T,J,a)        # formule de Green-Kubo, N : découpe de 
     1 .-means, sqrt.(vars/J)*1.96
 
 end
-
+"""
