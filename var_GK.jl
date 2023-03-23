@@ -54,52 +54,24 @@ function green_kubo(N,T,J)        # formule de Green-Kubo, N : découpe de T, T 
 
 end
 
-#_____________________________________________________________________________
+#________________________________________________________________________________
 
-function green_kubo_var(N,T,J)        # formule de Green-Kubo, N : découpe de T, T le temps, J nbr pour MC
+function einstein(N,T,J)     # méthode d'Einstein : n est le nombre de pas qu'on veut, T le temps d'intégration et J pour MC
 
     pas = T/N                        # construction du pas
     q_0 = [gibbs_RS() for i = 1:J]   # itialisation des J trajectoire
-    q_T_int = q_0                    
-    S = Vd.(q_0)                     # initialisation des J intégrales         
+    q_T = q_0 
+    means, vars = zeros(N), zeros(N)   #initialisation des moyennes et des variances empiriques 
 
-    for n = 1:N-1
-        q_T_int += euler.(q_T_int,pas)   # construction des J trajectoires
-        S += Vd.(q_T_int)                # intégration des J trajectoires
+    for n=2:N                     # début de la sommation des trajectoire
+        
+        q_T += euler.(q_T,pas)
+        means[n] = mean( (q_T.-q_0).^2 ) /2/(n*pas)  # calcule de la moyenne empirique
+        vars[n] = var( (q_T.-q_0).^2 /2/(n*pas))     # calcule de la variance empirique
+
     end
-
-    S = pas*S.*(-Vd.(q_0))        # on multiplie par -sin(q_0) comme dans la formule
-    S2 =  S.^2
-    moyenne = sum(S)/J
-    var_emp = sum(S2)/J - (moyenne)^2
-
-    return 1.96*sqrt(var_emp/J)           # on renvoie la variance (le 1 - ... est bien sur gômmé)
-
-end
-
-#________________________________________________________________________________
-
-function einstein(n,T,J)     # méthode d'Einstein : n est le nombre de pas qu'on veut, T le temps d'intégration et J pour MC
-    pas = T/n                # on pose le pas de temps pour Euler-...?
-    Est = 0                  # initialisation de l'estimateur
-    Est2 = 0                 # calcul de la variance
-
-    for j=1:J                     # début de la sommation des trajectoire
-        q_0 = gibbs_RS()
-        q_T = q_0
-        for k=1:n                 # construction d'une trajectoire
-            q_T += euler(q_T,pas)
-        end
-
-        Est += abs(q_T-q_0)^2     #actualisation de l'estimateur (non normalisé)
-        Est2 += ( abs(q_T-q_0)^2 )^2
-    end
-    moyenne = Est/2/T/J
-    var_emp = Est2/4/(T^2)/J - (moyenne)^2       # calcul de la variance Empirique 
-    var_estr = var_emp/J
-    marge_err = 1.96 * sqrt(var_estr)            # calcul de l'intervalle de confiance à 95%
-    @printf "On a une estimation de %.6f" moyenne
-    @printf " +/- %.6f" marge_err 
+    means,sqrt.(vars/J)*1.96
+    
 end
 """
 T = 1:0.01:10
@@ -112,3 +84,8 @@ end
 
 plot(T,GK,ribbon=GKV)
 """
+gk,vgk=green_kubo(1000,10,100000)
+e,ve=einstein(1000,10,100000)
+
+plot(gk[20:end],ribbon=vgk[20:end],label="green-kubo")
+plot!(e[20:end],ribbon=ve[20:end],label="einstein")
