@@ -73,19 +73,7 @@ function einstein(N,T,J)     # méthode d'Einstein : n est le nombre de pas qu'o
     means,sqrt.(vars/J)*1.96
     
 end
-"""
-T = 1:0.01:10
-GK = []
-GKV = []
-for t = 1:0.01:10
-    push!(GK,green_kubo(10*t,t,10000))
-    push!(GKV,green_kubo_var(10*t,t,10000))
-end
 
-plot(T,GK,ribbon=GKV)
-"""
-gk,vgk=green_kubo(1000,10,100000)
-e,ve=einstein(1000,10,100000)
-
-plot(gk[20:end],ribbon=vgk[20:end],label="green-kubo")
-plot!(e[20:end],ribbon=ve[20:end],label="einstein")
+t=10/1000:10/1000:10
+e,ve = green_kubo(1000,10,10000)
+plot(t[5:end],e[5:end],ribbon=ve[5:end])
