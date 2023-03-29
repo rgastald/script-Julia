@@ -73,12 +73,13 @@ end
 function rep_lin(eta,N,T)   # réponse linéaire, n nbr d'étapes, eta coeff et T tps d'integr
     pas = T/N               # on pose le pas de temps pour Euler-...? 
     q_T = gibbs_RS()        #on démarre une trajectoire, l'integrale donnera la même chose par ergodicité
-    S = -Vd(q_T)
-    for n = 1:N-1
+    S = zeros(N)
+    S[1] = -Vd(q_T)
+    for n = 2:N
         q_T += euler(q_T,pas) + eta*pas    # construction au fur et à mesure d'une trajectoire
-        S += -Vd(q_T)        # incrémentation de l'intégrale
+        S[n] = S[n-1] - Vd(q_T)        # incrémentation de l'intégrale
     end
-    return 1+S/(N*eta)
+    return 1 .+ S/(N*eta)
 end 
 
 #_____________________________________________________________________________
@@ -157,14 +158,12 @@ function diff_finies_coeff(h)
     return 1 + D*h/Z
 
 end
-"""
-GK = []
-GKV = []
-T = 1:0.05:10
-for t = 1:0.05:10
-    push!(GK, green_kubo(10*t,t,1000))
-    push!(GKV, green_kubo_var(10*t,t,1000))
-end
 
-plot(T,GK,ribbon = GKV)
-"""
+
+t = 10/1000:10/1000:10
+
+plot(t[1:200],rep_lin(1,1000,10)[1:200],label="réponse linéaire eta = 1")
+plot!(t[1:200],rep_lin(0.5,1000,10)[1:200],label="réponse linéaire eta = 0.5")
+plot!(t[1:200],rep_lin(0.1,1000,10)[1:200],label="réponse linéaire eta = 0.1")
+xlabel!("Temps T")
+

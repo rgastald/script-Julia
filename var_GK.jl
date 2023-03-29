@@ -75,5 +75,7 @@ function einstein(N,T,J)     # méthode d'Einstein : n est le nombre de pas qu'o
 end
 
 t=10/1000:10/1000:10
-e,ve = green_kubo(1000,10,10000)
-plot(t[5:end],e[5:end],ribbon=ve[5:end])
+e,ve = einstein(1000,10,100000)
+plot(t[20:end],e[20:end],ribbon=ve[20:end])
+xlabel!("Temps T")
+ylabel!("Einstein")
