@@ -15,12 +15,6 @@ end
 
 #_____________________________________________________________________________
 
-function euler(q,pas,a)                          # q est la valeur au temps n et pas l'incrémentation
-    return -pas*a*Vd(q) + sqrt(2*pas)*randn()    #méthode d'euler
-end
-
-#_____________________________________________________________________________
-
 function gibbs_RS(a)  # simulation de la mesure de Gibbs par méthode de rejet
 #on initialise le while
 g = 2*pi*rand() - pi
@@ -32,31 +26,17 @@ while u > exp(-a*(1-cos(g))/2) # exp(-(1-cos(q))/2) la valeur de notre densité 
 end
 return g                     #on termine le programme et renvoie la valeur de la VA ayant pour densité la mesure de Gibbs
 end
+#_____________________________________________________________________________
+
+function euler_general(q,pas,U)                          # q est la valeur au temps n et "pas" l'incrémentation
+    return -pas .* Vd(q) .+ sqrt(2*pas) .* randn() .+ U(q) .* pas    #méthode d'euler
+end
 
 #_____________________________________________________________________________
 
-
-function GK_girsanov_new(N,T,J,a)
-    pas = T/N                        # on définit le pas
-    q0 = [gibbs_RS(1) for i = 1:J]   # on initialise les J trajectoire
-    qT = q0
-    S = Vd.(q0).*Vd.(q0)*pas
-    means, vars = zeros(N),zeros(N)
-    means[1] = mean(S)
-    vars[1] = var(S)
-    Y = zeros(J)                            # log LR
-
-    for n = 2:N                      # calcul des J trajectoires
-        qT_new = qT .+ euler.(qT,pas,a)
-        Y += (qT_new .- qT).*(Vd.(qT) - a*Vd.(qT))/2 .+ pas*((Vd.(qT)).^2 - (a*(Vd.(qT)).^2))/4
-        qT = qT_new
-        S += Vd.(qT).*Vd.(q0)*pas
-        means[n] = mean(S.*exp.((-1).*Y))
-        vars[n] = var(S.*exp.((-1).*Y))
-    end
-    1 .- means, sqrt.(vars/J)*1.96
-    end
-
+function euler(q,pas)                          # q est la valeur au temps n et "pas" l'incrémentation
+    return -pas .* Vd(q) .+ sqrt(2*pas) .* randn()    #méthode d'euler
+end
 #_____________________________________________________________________________
 
 function green_kubo(N,T,J)        # formule de Green-Kubo, N : découpe de T, T le temps, J nbr pour MC
@@ -70,7 +50,7 @@ function green_kubo(N,T,J)        # formule de Green-Kubo, N : découpe de T, T 
     vars[1] = var(S)     
 
     for n = 2:N
-        q_T_int += euler.(q_T_int,pas,1)   # construction des J trajectoires
+        q_T_int += euler.(q_T_int,pas)   # construction des J trajectoires
         S += Vd.(q_T_int).*Vd.(q_0)*pas              # intégration des J trajectoires
         means[n] = mean(S)
         vars[n] = var(S)
@@ -80,12 +60,6 @@ function green_kubo(N,T,J)        # formule de Green-Kubo, N : découpe de T, T 
 end
 #_____________________________________________________________________________
 
-"""
-on fait ici des fonctions plus générales où l'on passe de V à un potentiel U (dérivé) général
-"""
-function euler_general(q,pas,U)                          # q est la valeur au temps n et "pas" l'incrémentation
-    return -pas*Vd(q) + sqrt(2*pas)*randn() + U(q)*pas    #méthode d'euler
-end
 
 function girsanov_general(N,T,J,U)  # N : nbr de pas, T : temps final, J : nombre de réalisation, U nouveau potentiel
 
@@ -110,12 +84,15 @@ function girsanov_general(N,T,J,U)  # N : nbr de pas, T : temps final, J : nombr
     end
 
 
+D = 0.884175564 # valeur obtenue par différences finies
+t=10/1000:10/1000:10
+U(x) = 0.1 .* Vd(x)
 
-U(x) = -10 .* x.* exp.(-10 .* (x).^2)     # potentiel avec bosse
-t=10/1000:10/1000:10                              # intervalle de temps
-gk,vgk = green_kubo(1000,10,10000)                # green kubo et son intervalle de confiance
-gkg,vgkg = girsanov_general(1000,10,10000,U)      # green kubo (girsanov) et son intervalle de confiance
-plot(t,gk,label="GK",ribbon=vgk)                  
-plot!(t,gkg,label="GKG",ribbon=vgkg)
+gk,vgk = green_kubo(1000,10,10000)
+gkg, vgkg = girsanov_general(1000,10,10000,U)
+C = D .+ zeros(1000)
+
+plot(t, gk, ribbon=vgk, label = "Greek-Kubo")
+plot!(t, gkg, ribbon=vgkg, label = "Green-Kubo Girsanov")
+plot!(t, C, color = "red", label = "Coefficient D")
 xlabel!("Temps T")
-ylabel!("Green-Kubo")

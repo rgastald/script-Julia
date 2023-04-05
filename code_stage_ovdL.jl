@@ -135,7 +135,8 @@ function sol_poisson(h)   # solution de l'eq de Poisson par différences finies
 
     A = Tridiagonal(DL,D,DU)       # matrice pour résoudre le système et avoir PHI
 
-    return A\V
+    #return A\V
+    det(A)
 
 end
 
@@ -159,11 +160,11 @@ function diff_finies_coeff(h)
 
 end
 
-
+"""
 t = 10/1000:10/1000:10
 
-plot(t[1:200],rep_lin(1,1000,10)[1:200],label="réponse linéaire eta = 1")
-plot!(t[1:200],rep_lin(0.5,1000,10)[1:200],label="réponse linéaire eta = 0.5")
-plot!(t[1:200],rep_lin(0.1,1000,10)[1:200],label="réponse linéaire eta = 0.1")
+plot(t,rep_lin(1,1000,10),label="eta = 1")
+plot!(t,rep_lin(0.5,1000,10),label="eta = 0.5")
+plot!(t,rep_lin(0.1,1000,10),label="eta = 0.1")
 xlabel!("Temps T")
-
+"""
