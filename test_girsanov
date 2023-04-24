@@ -10,17 +10,18 @@ using LinearAlgebra
 #_____________________________________________________________________________
 
 function Vd(q)         # définition de la dérivée de la fonction potentiel 
-    return sin(q)/2    # potentiel périodique 
+    return sin(q)/2 #-10 .* q.* exp.(-10 .* (q).^2)   # potentiel périodique 
+    #return (1/5)*(-4*cos(q)-20*cos(q)*sin(q))
 end
 
 #_____________________________________________________________________________
 
-function gibbs_RS(a)  # simulation de la mesure de Gibbs par méthode de rejet
+function gibbs_RS(beta)  # simulation de la mesure de Gibbs par méthode de rejet
 #on initialise le while
 g = 2*pi*rand() - pi
 u = rand()
 
-while u > exp(-a*(1-cos(g))/2) # exp(-(1-cos(q))/2) la valeur de notre densité sans Z
+while u > exp(-beta*(1-cos(g))/2) # exp(-(1-cos(q))/2) la valeur de notre densité sans Z
     g = 2*pi*rand() - pi 
     u = rand()
 end
@@ -28,29 +29,29 @@ return g                     #on termine le programme et renvoie la valeur de la
 end
 #_____________________________________________________________________________
 
-function euler_general(q,pas,U)                          # q est la valeur au temps n et "pas" l'incrémentation
-    return -pas .* Vd(q) .+ sqrt(2*pas) .* randn() .+ U(q) .* pas    #méthode d'euler
+function euler_general(q,pas,U,beta)                          # q est la valeur au temps n et "pas" l'incrémentation
+    return -pas .* Vd(q) .+ sqrt(2*pas/beta) .* randn() .+ U(q) .* pas    #méthode d'euler
 end
 
 #_____________________________________________________________________________
 
-function euler(q,pas)                          # q est la valeur au temps n et "pas" l'incrémentation
-    return -pas .* Vd(q) .+ sqrt(2*pas) .* randn()    #méthode d'euler
+function euler(q,pas,beta)                          # q est la valeur au temps n et "pas" l'incrémentation
+    return -pas .* Vd(q) .+ sqrt(2*pas/beta) .* randn()    #méthode d'euler
 end
 #_____________________________________________________________________________
 
-function green_kubo(N,T,J)        # formule de Green-Kubo, N : découpe de T, T le temps, J nbr pour MC
+function green_kubo(N,T,J,beta)        # formule de Green-Kubo, N : découpe de T, T le temps, J nbr pour MC
 
     pas = T/N                        # construction du pas
-    q_0 = [gibbs_RS(1) for i = 1:J]   # itialisation des J trajectoire
-    q_T_int = q_0                    
+    q_0 = [gibbs_RS(beta) for i = 1:J]   # itialisation des J trajectoire
+    qt = q_0                    
     S = Vd.(q_0).*Vd.(q_0)*pas               # initialisation des J intégrales          
     means, vars = zeros(N), zeros(N)   #initialisation des moyennes et des variances empiriques
     means[1] = mean(S)
     vars[1] = var(S)     
 
     for n = 2:N
-        q_T_int += euler.(q_T_int,pas)   # construction des J trajectoires
+        qt += euler.(qt,pas,beta)   # construction des J trajectoires
         S += Vd.(q_T_int).*Vd.(q_0)*pas              # intégration des J trajectoires
         means[n] = mean(S)
         vars[n] = var(S)
@@ -61,38 +62,96 @@ end
 #_____________________________________________________________________________
 
 
-function girsanov_general(N,T,J,U)  # N : nbr de pas, T : temps final, J : nombre de réalisation, U nouveau potentiel
+function girsanov_general(N,T,J,U,beta)  # N : nbr de pas, T : temps final, J : nombre de réalisation, U nouveau potentiel
 
     pas = T/N                        # on définit le pas
-    q0 = [gibbs_RS(1) for i = 1:J]   # on initialise les J trajectoire
-    qT = q0
-    S = Vd.(q0).*Vd.(q0)*pas         # début de l'intégration
-    means, vars = zeros(N),zeros(N)
-    means[1] = mean(S)               # initialisation des moyennes et variances empiriques
-    vars[1] = var(S)
-    Y = zeros(J)                          
+    
+    q0 = [gibbs_RS(beta) for i = 1:J]   # on initialise les J trajectoire
+    qT1 = q0
+    qT2 = q0
+    
+    S1, S2 = Vd.(q0).*Vd.(q0)*pas, Vd.(q0).*Vd.(q0)*pas       # début de l'intégration
+    
+    means1, vars1 = zeros(N),zeros(N)
+    means2, vars2 = zeros(N),zeros(N)
+    
+    #dW = sqrt(pas) .* [randn() for i = 1:J]
+    Y = zeros(J)
+    #Y += dW .*U.(qT2)/sqrt(2) .- pas*((U.(qT2)).^2)/4 
 
+    means1[1],means2[1] = mean(S1),mean(S2.*exp.(Y))               # initialisation des moyennes et variances empiriques
+    vars1[1], vars2[1] = var(S1),var(S2.*exp.(Y))                 # initialisation du log poids de girsanov
+    
     for n = 2:N                      # calcul des J trajectoires
-        qT += euler_general.(qT,pas,U)         # actualisation de la trajectoire
-        Y += sqrt(pas)*randn()*U.(qT)/sqrt(2) .+ pas*((U.(qT)).^2)/4  # calcul du log LR
-        #qT = qT_new
-        S += Vd.(qT).*Vd.(q0)*pas
-        means[n] = mean(S.*exp.((-1).*Y))   # mise à jours des moyennes et des variances
-        vars[n] = var(S.*exp.((-1).*Y))
+        dW = sqrt(pas) .* [randn() for i = 1:J]
+        qT1 += -pas .* Vd.(qT1) .+ sqrt(2/beta)*dW         # actualisation de la trajectoire
+        
+        #Y += 2 .* U.(qT2) .* (-pas .* Vd.(qT2) .+ sqrt(2)*dW .+ pas .* U.(qT2)) .- (U.(qT2) - 2*Vd.(qT2)) .* U.(qT2) * pas
+        Y += -dW .* U.(qT2)*(sqrt(beta/2)) .+ pas*((U.(qT2)).^2)*(beta/4) # calcul du log LR
+        
+        
+        qT2 += -pas .* Vd.(qT2) .+ sqrt(2/beta)*dW .+ pas .* U.(qT2)       # actualisation de la trajectoire
+        
+        #Y += dW .* U.(qT2)*(sqrt(beta/2)) .- pas*((U.(qT2)).^2)*(beta/4)  
+        
+        S1 = S1 .+ Vd.(qT1) .* Vd.(q0) .*pas 
+        S2 = S2 .+ Vd.(qT2) .* Vd.(q0) .*pas
+        
+        means1[n] = mean(S1)
+        means2[n] = mean(S2.*exp.(-Y))   # mise à jours des moyennes et des variances
+        
+        vars1[n] = var(S1)
+        vars2[n] = var(S2.*exp.(-Y))
     end
-    1 .- means, sqrt.(vars/J)*1.96
+    1 .- means1, sqrt.(vars1/J)*1.96, 1 .- means2, sqrt.(vars2/J)*1.96
     end
 
 
-D = 0.884175564 # valeur obtenue par différences finies
-t=10/1000:10/1000:10
-U(x) = 0.1 .* Vd(x)
 
-gk,vgk = green_kubo(1000,10,10000)
-gkg, vgkg = girsanov_general(1000,10,10000,U)
-C = D .+ zeros(1000)
+    function autocorrel_girsanov_general(N,T,J,U)  # N : nbr de pas, T : temps final, J : nombre de réalisation, U nouveau potentiel
+
+        pas = T/N                        # on définit le pas
+        q0 = [gibbs_RS(1) for i = 1:J]   # on initialise les J trajectoire
+        qT1 = q0
+        qT2 = q0
+        S1, S2 = Vd.(q0).*Vd.(q0), Vd.(q0).*Vd.(q0)       # début de l'intégration
+        means1, vars1 = zeros(N),zeros(N)
+        means2, vars2 = zeros(N),zeros(N)
+        
+        means1[1],means2[1] = mean(S1),mean(S1)               # initialisation des moyennes et variances empiriques
+        vars1[1], vars2[1] = var(S1),var(S1)                 # initialisation du log poids de girsanov
+        Y = zeros(J)   
+                             
+    
+        for n = 2:N                      # calcul des J trajectoires
+            dW = sqrt(pas) .* [randn() for i = 1:J]
+            qT1 += -pas .* Vd.(qT1) .+ sqrt(2)*dW         # actualisation de la trajectoire
+            Y += 2 .* U.(qT2) .* (-pas .* Vd.(qT2) .+ sqrt(2)*dW .+ pas .* U.(qT2)) .- (U(qT2) - 2*Vd.(qT2)) .* U(qT2) * h
+            qT2 += -pas .* Vd.(qT2) .+ sqrt(2)*dW .+ pas .* U.(qT2)         # actualisation de la trajectoire
+
+            #Y += dW .*(-U.(qT2))/sqrt(2) .+ pas*((U.(qT2)).^2)/4  # calcul du log LR
+
+            S1 =  Vd.(qT1) .* Vd.(q0)  
+            S2 =  Vd.(qT2) .* Vd.(q0) 
+            
+            means1[n] = mean(S1)
+            means2[n] = mean(S2.*exp.((-1).*Y))   # mise à jours des moyennes et des variances
+            
+            vars1[n] = var(S1)
+            vars2[n] = var(S2.*exp.((-1).*Y))
+        end
+        means1, sqrt.(vars1/J)*1.96, means2, sqrt.(vars2/J)*1.96
+        end
+    
+#D = 0.884175564 # valeur obtenue par différences finies
+t=10/10000:10/10000:10
+U(x) = Vd(x) #-5 .* x.* exp.(-10 .* (x).^2) #0.2 .* Vd(x)*
+
+#gk,vgk = green_kubo(1000,10,10000)
+gk,vgk,gkg,vgkg = girsanov_general(10000,10,10000,x -> 0.21*U(x),1)
+#C = D .+ zeros(1000)
 
 plot(t, gk, ribbon=vgk, label = "Greek-Kubo")
 plot!(t, gkg, ribbon=vgkg, label = "Green-Kubo Girsanov")
-plot!(t, C, color = "red", label = "Coefficient D")
+#plot!(t, C, color = "red", label = "Coefficient D")
 xlabel!("Temps T")
