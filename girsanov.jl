@@ -111,7 +111,7 @@ function girsanov_general(N,T,J,U)  # N : nbr de pas, T : temps final, J : nombr
 
 
 
-U(x) = -10 .* x.* exp.(-10 .* (x).^2)     # potentiel avec bosse
+U(x) = 0.1 .* Vd.(x)#-10 .* x.* exp.(-10 .* (x).^2)     # potentiel avec bosse
 t=10/1000:10/1000:10                              # intervalle de temps
 gk,vgk = green_kubo(1000,10,10000)                # green kubo et son intervalle de confiance
 gkg,vgkg = girsanov_general(1000,10,10000,U)      # green kubo (girsanov) et son intervalle de confiance

@@ -66,8 +66,8 @@ function einstein(N,T,J)     # méthode d'Einstein : n est le nombre de pas qu'o
     for n=2:N                     # début de la sommation des trajectoire
         
         q_T += euler.(q_T,pas)
-        means[n] = mean( (q_T.-q_0).^2 ) /2#/(n*pas)  # calcule de la moyenne empirique
-        vars[n] = var( (q_T.-q_0).^2 /2)#/(n*pas))     # calcule de la variance empirique
+        means[n] = mean( (q_T.-q_0).^2 ) /2/(n*pas)  # calcule de la moyenne empirique
+        vars[n] = var( (q_T.-q_0).^2 /2/(n*pas))     # calcule de la variance empirique
 
     end
     means,sqrt.(vars/J)*1.96
@@ -75,9 +75,11 @@ function einstein(N,T,J)     # méthode d'Einstein : n est le nombre de pas qu'o
 end
 D = 0.884175564 # valeur obtenue par différences finies
 t=10/1000:10/1000:10
-e,ve = einstein(1000,10,10000)
+e,ve = einstein(100000,1000,10000)
 C = D .+ zeros(1000)
+gk,vgk = green_kubo(100000,1000,10000)
 plot(t,e,ribbon=ve)
-#plot!(t[20:end],C[20:end],color = "red", label = "coefficient")
-xlabel!("Temps T")
-ylabel!("Einstein")
+plot!(t,gk,ribbon=vgk)
+plot!(t,C,color = "red", label = "coefficient")
+#xlabel!("Temps T")
+#ylabel!("Einstein")

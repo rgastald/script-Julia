@@ -14,18 +14,18 @@ end
 
 #_____________________________________________________________________________
 
-function euler(q,pas)                          # q est la valeur au temps n et pas l'incrémentation
-    return -pas*Vd(q) + sqrt(2*pas)*randn()    #méthode d'euler
+function euler(q,pas,beta)                          # q est la valeur au temps n et pas l'incrémentation
+    return -pas*Vd(q) + sqrt(2*pas/beta)*randn()    #méthode d'euler
 end
 
 #_____________________________________________________________________________
 
-function gibbs_RS()  # simulation de la mesure de Gibbs par méthode de rejet
+function gibbs_RS(beta)  # simulation de la mesure de Gibbs par méthode de rejet
 #on initialise le while
 g = 2*pi*rand() - pi
 u = rand()
 
-while u > exp(-(1-cos(g))/2) # exp(-(1-cos(q))/2) la valeur de notre densité sans Z
+while u > exp(-beta*(1-cos(g))/2) # exp(-(1-cos(q))/2) la valeur de notre densité sans Z
     g = 2*pi*rand() - pi 
     u = rand()
 end
@@ -35,16 +35,16 @@ end
 
 #________________________________________________________________________________
 
-function einstein(n,T,J)     # méthode d'Einstein : n est le nombre de pas qu'on veut, T le temps d'intégration et J pour MC
+function einstein(n,T,J,beta)     # méthode d'Einstein : n est le nombre de pas qu'on veut, T le temps d'intégration et J pour MC
     pas = T/n                # on pose le pas de temps pour Euler-...?
     Est = 0                  # initialisation de l'estimateur
     Est2 = 0                 # calcul de la variance
 
     for j=1:J                     # début de la sommation des trajectoire
-        q_0 = gibbs_RS()
+        q_0 = gibbs_RS(beta)
         q_T = q_0
         for k=1:n                 # construction d'une trajectoire
-            q_T += euler(q_T,pas)
+            q_T += euler(q_T,pas,beta)
         end
 
         Est += abs(q_T-q_0)^2     #actualisation de l'estimateur (non normalisé)
@@ -60,23 +60,23 @@ end
 
 #_____________________________________________________________________________
 
-function test_gibbs(n)  ### On voit si la fonction de Gibbs simulée à 
+function test_gibbs(n,beta)  ### On voit si la fonction de Gibbs simulée à 
     x=[]                ### la répartition attendue
     for i=1:n
-        push!(x,gibbs_RS())
+        push!(x,gibbs_RS(beta))
     end
     histogram(x)
 end
 
 #_____________________________________________________________________________
 
-function rep_lin(eta,N,T)   # réponse linéaire, n nbr d'étapes, eta coeff et T tps d'integr
+function rep_lin(eta,N,T,beta)   # réponse linéaire, n nbr d'étapes, eta coeff et T tps d'integr
     pas = T/N               # on pose le pas de temps pour Euler-...? 
-    q_T = gibbs_RS()        #on démarre une trajectoire, l'integrale donnera la même chose par ergodicité
+    q_T = gibbs_RS(beta)        #on démarre une trajectoire, l'integrale donnera la même chose par ergodicité
     S = zeros(N)
     S[1] = -Vd(q_T)
     for n = 2:N
-        q_T += euler(q_T,pas) + eta*pas    # construction au fur et à mesure d'une trajectoire
+        q_T += euler(q_T,pas,beta) + eta*pas    # construction au fur et à mesure d'une trajectoire
         S[n] = S[n-1] - Vd(q_T)        # incrémentation de l'intégrale
     end
     return 1 .+ S/(N*eta)
@@ -84,20 +84,20 @@ end
 
 #_____________________________________________________________________________
 
-function green_kubo(N,T,J)        # formule de Green-Kubo, N : découpe de T, T le temps, J nbr pour MC
+function green_kubo(N,T,J,beta)        # formule de Green-Kubo, N : découpe de T, T le temps, J nbr pour MC
 
     pas = T/N                        # construction du pas
-    q_0 = [gibbs_RS() for i = 1:J]   # itialisation des J trajectoire
+    q_0 = [gibbs_RS(beta) for i = 1:J]   # itialisation des J trajectoire
     q_T_int = q_0                    
     S = -Vd.(q_0)*pas                # initialisation des J intégrales               
 
     for n = 1:N-1
-        q_T_int += euler.(q_T_int,pas)   # construction des J trajectoires
+        q_T_int += euler.(q_T_int,pas,beta)   # construction des J trajectoires
         S += -Vd.(q_T_int)*pas           # intégration des J trajectoires
     end
 
     S = S.*(-Vd.(q_0))        # on multiplie par -sin(q_0) comme dans la formule
-    return 1-sum(S)/J           # normalisation
+    return 1-beta^2*sum(S)/J           # normalisation
 
 end
 
@@ -135,8 +135,8 @@ function sol_poisson(h)   # solution de l'eq de Poisson par différences finies
 
     A = Tridiagonal(DL,D,DU)       # matrice pour résoudre le système et avoir PHI
 
-    #return A\V
-    det(A)
+    return A\V
+    #det(A)
 
 end
 
